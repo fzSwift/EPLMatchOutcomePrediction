@@ -6,23 +6,26 @@ Run from project root:
 """
 from __future__ import annotations
 
+import os
 import sys
+import tempfile
+from datetime import date
 from pathlib import Path
+
+import joblib
+import pandas as pd
+import streamlit as st
 
 ROOT = Path(__file__).resolve().parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from datetime import date
-
-import pandas as pd
-import streamlit as st
-
 from app.constants import MODEL_CATALOG
 from app.labels import outcome_display
-from app.ml_core import default_artifact_path, load_bundle, predict_row
+from app.ml_core import default_artifact_path, load_bundle, predict_row, train_bundle
 
 MODEL_OPTIONS = {m["name"]: m["id"] for m in MODEL_CATALOG}
+DEFAULT_CSV_NAME = "Football_Dataset_2015_2025.csv"
 
 
 @st.cache_resource
@@ -31,27 +34,63 @@ def bundle_for_mtime(mtime: float):
     return load_bundle()
 
 
+def _default_csv_path() -> Path:
+    env = os.environ.get("EPL_DATASET_PATH")
+    if env:
+        return Path(env)
+    return ROOT / DEFAULT_CSV_NAME
+
+
+def _train_and_save_bundle(csv_path: Path, artifact_path: Path):
+    with st.spinner(f"Training models from `{csv_path.name}`..."):
+        bundle = train_bundle(csv_path)
+    artifact_path.parent.mkdir(parents=True, exist_ok=True)
+    joblib.dump(bundle, artifact_path)
+    return bundle
+
+
+def _load_or_train_bundle(artifact_path: Path):
+    if artifact_path.is_file():
+        return bundle_for_mtime(artifact_path.stat().st_mtime)
+
+    st.warning(f"No model found at `{artifact_path}`.")
+    csv_path = _default_csv_path()
+    if csv_path.is_file():
+        st.info(f"Found dataset at `{csv_path}`. Training automatically now.")
+        _train_and_save_bundle(csv_path, artifact_path)
+        return bundle_for_mtime(artifact_path.stat().st_mtime)
+
+    st.error(
+        "Model artifact and dataset are both missing. "
+        f"Add `{DEFAULT_CSV_NAME}` to the project root, set `EPL_DATASET_PATH`, "
+        "or upload a CSV below."
+    )
+    upload = st.file_uploader("Upload dataset CSV", type=["csv"])
+    if upload is None:
+        st.stop()
+    with tempfile.NamedTemporaryFile(suffix=".csv", delete=False) as tf:
+        tf.write(upload.getvalue())
+        temp_path = Path(tf.name)
+    try:
+        _train_and_save_bundle(temp_path, artifact_path)
+    finally:
+        temp_path.unlink(missing_ok=True)
+    return bundle_for_mtime(artifact_path.stat().st_mtime)
+
+
 def main():
     st.set_page_config(page_title="EPL predictor", layout="wide")
     st.title("EPL match outcome predictor")
     st.caption(
-        "Same pipelines as the notebooks / FastAPI app. "
-        "Train first: `python scripts/train_model.py`"
+        "Uses the same training/prediction pipeline as notebooks and FastAPI. "
+        "If the bundle is missing, this page can train it automatically."
     )
 
-    path = default_artifact_path()
-    if not path.is_file():
-        st.error(
-            f"No model at `{path}`. Run **`python scripts/train_model.py`** "
-            "with `Football_Dataset_2015_2025.csv` in the project folder."
-        )
-        st.stop()
-
-    mtime = path.stat().st_mtime
+    artifact_path = default_artifact_path()
     try:
-        bundle = bundle_for_mtime(mtime)
+        bundle = _load_or_train_bundle(artifact_path)
     except Exception as e:
-        st.error(f"Failed to load model bundle: {e}")
+        st.error(f"Failed to initialize model bundle: {e}")
         st.stop()
 
     teams: list[str] = bundle["teams"]
@@ -63,6 +102,8 @@ def main():
         model_name = st.radio("Classifier", list(MODEL_OPTIONS.keys()), index=0)
         model_key = MODEL_OPTIONS[model_name]
         st.divider()
+        st.subheader("Artifact")
+        st.code(str(artifact_path))
         st.subheader("Test metrics (hold-out)")
         for k, v in bundle.get("metrics", {}).items():
             st.markdown(f"**{k}**")
@@ -126,9 +167,7 @@ def main():
 
         chart_df = pd.DataFrame(
             {
-                "Outcome": [
-                    outcome_display(k) for k in class_labels
-                ],
+                "Outcome": [outcome_display(k) for k in class_labels],
                 "Probability": [probs[k] for k in class_labels],
             }
         ).set_index("Outcome")
