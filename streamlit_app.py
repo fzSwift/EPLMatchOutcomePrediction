@@ -11,6 +11,7 @@ import sys
 import tempfile
 from datetime import date
 from pathlib import Path
+from urllib.request import urlretrieve
 
 import joblib
 import pandas as pd
@@ -41,6 +42,17 @@ def _default_csv_path() -> Path:
     return ROOT / DEFAULT_CSV_NAME
 
 
+def _download_csv_if_configured() -> Path | None:
+    url = os.environ.get("EPL_DATASET_URL", "").strip()
+    if not url:
+        return None
+    target = ROOT / DEFAULT_CSV_NAME
+    with st.spinner("Downloading dataset from EPL_DATASET_URL..."):
+        urlretrieve(url, target)
+    st.success(f"Downloaded dataset to `{target}`.")
+    return target
+
+
 def _train_and_save_bundle(csv_path: Path, artifact_path: Path):
     with st.spinner(f"Training models from `{csv_path.name}`..."):
         bundle = train_bundle(csv_path)
@@ -60,10 +72,15 @@ def _load_or_train_bundle(artifact_path: Path):
         _train_and_save_bundle(csv_path, artifact_path)
         return bundle_for_mtime(artifact_path.stat().st_mtime)
 
+    downloaded = _download_csv_if_configured()
+    if downloaded and downloaded.is_file():
+        _train_and_save_bundle(downloaded, artifact_path)
+        return bundle_for_mtime(artifact_path.stat().st_mtime)
+
     st.error(
         "Model artifact and dataset are both missing. "
         f"Add `{DEFAULT_CSV_NAME}` to the project root, set `EPL_DATASET_PATH`, "
-        "or upload a CSV below."
+        "set `EPL_DATASET_URL`, or upload a CSV below."
     )
     upload = st.file_uploader("Upload dataset CSV", type=["csv"])
     if upload is None:

@@ -155,7 +155,8 @@ If `artifacts/bundle.joblib` is missing, Streamlit now tries this order:
 
 1. Train automatically from local `Football_Dataset_2015_2025.csv` in project root.
 2. Train from path in `EPL_DATASET_PATH` (if set).
-3. Prompt for CSV upload in the page, then train and save the bundle.
+3. Download CSV from `EPL_DATASET_URL` (if set), then train and save the bundle.
+4. Prompt for CSV upload in the page, then train and save the bundle.
 
 ---
 
@@ -180,6 +181,7 @@ Full field validation and examples: **http://127.0.0.1:8000/docs** (when the ser
 |----------|---------|
 | `EPL_ARTIFACT_PATH` | Absolute path to `bundle.joblib`. Used by `train_model.py` (default `--out`), `ml_core.default_artifact_path()`, and the API `BundleStore`. |
 | `EPL_DATASET_PATH` | Optional dataset path for Streamlit auto-training when no bundle exists. |
+| `EPL_DATASET_URL` | Optional direct URL to CSV used by Streamlit auto-training when local dataset is unavailable. |
 | `EPL_CORS_ORIGINS` | Comma-separated allowed browser origins. If unset: `http://127.0.0.1:8000`, `http://localhost:8000`, and the same hosts on port **8501** (Streamlit). |
 | `EPL_CORS_WILDCARD` | Set to `1` or `true` to allow **`*`** (convenient for quick demos; avoid for public production APIs). |
 | `EPL_ENV` | `development` (default) or `production` (reserved for future stricter defaults). |
