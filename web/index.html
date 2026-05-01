@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>EPL match predictor</title>
+  <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body>
+  <header>
+    <h1>EPL outcome predictor</h1>
+    <p class="sub">Uses the same models as the project notebook (after you train <code>artifacts/bundle.joblib</code>).</p>
+    <p id="status" class="status">Checking server…</p>
+  </header>
+
+  <main>
+    <form id="predict-form">
+      <section class="grid">
+        <label>Model
+          <select name="model" id="model">
+            <option value="rf">Random Forest</option>
+            <option value="log">Logistic Regression</option>
+            <option value="xgb">XGBoost</option>
+          </select>
+        </label>
+        <label>Match date
+          <input type="date" name="date" id="date" required />
+        </label>
+        <label>Season year
+          <input type="number" name="year" id="year" min="2015" max="2035" required />
+        </label>
+      </section>
+
+      <section class="grid two">
+        <div class="card">
+          <h2>Home</h2>
+          <label>Team
+            <select name="home_team" id="home_team" required></select>
+          </label>
+          <label>Possession %
+            <input type="number" name="possession_home" min="0" max="100" value="55" required />
+          </label>
+          <label>Shots
+            <input type="number" name="shots_home" min="0" max="50" value="14" required />
+          </label>
+          <label>Corners
+            <input type="number" name="corners_home" min="0" max="25" value="6" required />
+          </label>
+          <label>Fouls
+            <input type="number" name="fouls_home" min="0" max="35" value="12" required />
+          </label>
+        </div>
+        <div class="card">
+          <h2>Away</h2>
+          <label>Team
+            <select name="away_team" id="away_team" required></select>
+          </label>
+          <label>Possession %
+            <input type="number" name="possession_away" min="0" max="100" value="45" required />
+          </label>
+          <label>Shots
+            <input type="number" name="shots_away" min="0" max="50" value="10" required />
+          </label>
+          <label>Corners
+            <input type="number" name="corners_away" min="0" max="25" value="4" required />
+          </label>
+          <label>Fouls
+            <input type="number" name="fouls_away" min="0" max="35" value="11" required />
+          </label>
+        </div>
+      </section>
+
+      <button type="submit" id="submit-btn">Predict</button>
+    </form>
+
+    <section id="result" class="result hidden" aria-live="polite">
+      <h2>Result</h2>
+      <p class="prediction" id="prediction-text"></p>
+      <div class="bars" id="prob-bars"></div>
+    </section>
+  </main>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

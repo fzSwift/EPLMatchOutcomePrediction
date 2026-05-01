@@ -1,0 +1,192 @@
+:root {
+  font-family: "Segoe UI", system-ui, sans-serif;
+  --bg: #0f1419;
+  --card: #1a2332;
+  --text: #e7eef7;
+  --muted: #8b9cb3;
+  --accent: #3d8bfd;
+  --home: #2196f3;
+  --draw: #9e9e9e;
+  --away: #f44336;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.5;
+}
+
+header,
+main {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 1.25rem 1rem;
+}
+
+h1 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin: 0 0 0.5rem;
+}
+
+.sub {
+  color: var(--muted);
+  font-size: 0.95rem;
+  margin: 0 0 0.75rem;
+}
+
+.status {
+  font-size: 0.9rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 8px;
+  background: var(--card);
+  margin: 0;
+}
+
+.status.ok {
+  border-left: 4px solid #4caf50;
+}
+
+.status.err {
+  border-left: 4px solid #ff9800;
+}
+
+form section {
+  margin-bottom: 1.25rem;
+}
+
+.grid {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.grid.two {
+  grid-template-columns: 1fr 1fr;
+}
+
+@media (max-width: 600px) {
+  .grid.two {
+    grid-template-columns: 1fr;
+  }
+}
+
+.card {
+  background: var(--card);
+  padding: 1rem;
+  border-radius: 12px;
+}
+
+.card h2 {
+  margin: 0 0 0.75rem;
+  font-size: 1rem;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+  margin-bottom: 0.65rem;
+}
+
+input,
+select {
+  padding: 0.5rem 0.6rem;
+  border-radius: 8px;
+  border: 1px solid #2a3a52;
+  background: #121c2a;
+  color: var(--text);
+  font-size: 1rem;
+}
+
+button[type="submit"] {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  font-size: 1rem;
+  font-weight: 600;
+  border: none;
+  border-radius: 10px;
+  background: var(--accent);
+  color: #fff;
+  cursor: pointer;
+}
+
+button[type="submit"]:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.result {
+  margin-top: 1.5rem;
+  padding: 1rem;
+  background: var(--card);
+  border-radius: 12px;
+}
+
+.result.hidden {
+  display: none;
+}
+
+.prediction {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin: 0 0 1rem;
+}
+
+.bars > div {
+  margin-bottom: 0.5rem;
+}
+
+.bar-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+}
+
+.bar-row span:first-child {
+  width: 6.5rem;
+  flex-shrink: 0;
+  color: var(--muted);
+}
+
+.bar-track {
+  flex: 1;
+  height: 10px;
+  background: #121c2a;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.bar-fill {
+  height: 100%;
+  border-radius: 6px;
+  transition: width 0.35s ease;
+}
+
+.bar-fill.home {
+  background: var(--home);
+}
+
+.bar-fill.draw {
+  background: var(--draw);
+}
+
+.bar-fill.away {
+  background: var(--away);
+}
+
+.bar-row span:last-child {
+  width: 3rem;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
