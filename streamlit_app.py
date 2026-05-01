@@ -14,7 +14,6 @@ from pathlib import Path
 from urllib.request import urlretrieve
 
 import joblib
-import pandas as pd
 import streamlit as st
 
 ROOT = Path(__file__).resolve().parent
@@ -27,6 +26,7 @@ from app.ml_core import default_artifact_path, load_bundle, predict_row, train_b
 
 MODEL_OPTIONS = {m["name"]: m["id"] for m in MODEL_CATALOG}
 DEFAULT_CSV_NAME = "Football_Dataset_2015_2025.csv"
+OUTCOME_COLORS = {"Home Team": "#2196F3", "Draw": "#9E9E9E", "Away Team": "#F44336"}
 
 
 @st.cache_resource
@@ -59,6 +59,59 @@ def _train_and_save_bundle(csv_path: Path, artifact_path: Path):
     artifact_path.parent.mkdir(parents=True, exist_ok=True)
     joblib.dump(bundle, artifact_path)
     return bundle
+
+
+def _inject_styles() -> None:
+    st.markdown(
+        """
+        <style>
+          .main h1 { font-size: 2rem; margin-bottom: 0.2rem; }
+          .subtext { color: #9ca3af; margin-top: 0; margin-bottom: 1rem; }
+          .card {
+            background: linear-gradient(180deg, #111827 0%, #0b1220 100%);
+            border: 1px solid #1f2937;
+            border-radius: 12px;
+            padding: 0.9rem 1rem;
+            margin-bottom: 0.75rem;
+          }
+          .card h4 { margin: 0 0 0.35rem 0; font-size: 0.95rem; color: #d1d5db; }
+          .pred {
+            border-left: 4px solid #60a5fa;
+            background: #0b1220;
+            border-radius: 10px;
+            padding: 0.75rem 0.9rem;
+            margin: 0.4rem 0 0.8rem;
+            font-size: 1.05rem;
+          }
+          .section-title { margin-top: 0.35rem; margin-bottom: 0.5rem; }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def _render_probability_bars(class_labels: list[str], probs: dict[str, float]) -> None:
+    st.markdown("#### Outcome Probabilities")
+    for label in class_labels:
+        display = outcome_display(label)
+        p = float(probs.get(label, 0.0))
+        color = OUTCOME_COLORS.get(label, "#64748b")
+        st.markdown(
+            (
+                f"<div style='display:flex;justify-content:space-between;"
+                f"margin:0.2rem 0 0.2rem;'>"
+                f"<span>{display}</span><span>{p*100:.1f}%</span></div>"
+            ),
+            unsafe_allow_html=True,
+        )
+        st.markdown(
+            (
+                "<div style='background:#1f2937;border-radius:999px;height:10px;'>"
+                f"<div style='width:{p*100:.1f}%;background:{color};"
+                "height:10px;border-radius:999px;'></div></div>"
+            ),
+            unsafe_allow_html=True,
+        )
 
 
 def _load_or_train_bundle(artifact_path: Path):
@@ -97,10 +150,12 @@ def _load_or_train_bundle(artifact_path: Path):
 
 def main():
     st.set_page_config(page_title="EPL predictor", layout="wide")
+    _inject_styles()
     st.title("EPL match outcome predictor")
-    st.caption(
-        "Uses the same training/prediction pipeline as notebooks and FastAPI. "
-        "If the bundle is missing, this page can train it automatically."
+    st.markdown(
+        "<p class='subtext'>Uses the same training/prediction pipeline as notebooks "
+        "and FastAPI. If the bundle is missing, this page can train it automatically.</p>",
+        unsafe_allow_html=True,
     )
 
     artifact_path = default_artifact_path()
@@ -123,26 +178,29 @@ def main():
         st.code(str(artifact_path))
         st.subheader("Test metrics (hold-out)")
         for k, v in bundle.get("metrics", {}).items():
-            st.markdown(f"**{k}**")
+            st.markdown(f"<div class='card'><h4>{k}</h4></div>", unsafe_allow_html=True)
             if isinstance(v, dict):
-                st.json(v)
+                c1, c2, c3 = st.columns(3)
+                c1.metric("Accuracy", f"{v.get('accuracy', 0)*100:.1f}%")
+                c2.metric("Macro F1", f"{v.get('macro_f1', 0):.3f}")
+                c3.metric("Weighted F1", f"{v.get('weighted_f1', 0):.3f}")
 
-    c1, c2 = st.columns(2)
-    with c1:
+    top1, top2 = st.columns(2)
+    with top1:
         match_date = st.date_input("Match date", value=date.today())
-    with c2:
+    with top2:
         year = st.number_input("Season year", min_value=2015, max_value=2035, value=2024)
 
     left, right = st.columns(2)
     with left:
-        st.markdown("### Home")
+        st.markdown("### Home Team")
         home_team = st.selectbox("Home team", teams, key="h")
         ph = st.slider("Possession % (home)", 0, 100, 55)
         sh = st.slider("Shots (home)", 0, 40, 14)
         ch = st.slider("Corners (home)", 0, 20, 6)
         fh = st.slider("Fouls (home)", 0, 25, 12)
     with right:
-        st.markdown("### Away")
+        st.markdown("### Away Team")
         away_idx = 1 if len(teams) > 1 else 0
         away_team = st.selectbox(
             "Away team",
@@ -180,15 +238,28 @@ def main():
             st.stop()
 
         probs = {class_labels[i]: float(proba[i]) for i in range(len(class_labels))}
-        st.success(f"**{outcome_display(raw)}** (`{raw}`)")
+        st.markdown(
+            f"<div class='pred'><strong>Prediction:</strong> {outcome_display(raw)} "
+            f"(<code>{raw}</code>)</div>",
+            unsafe_allow_html=True,
+        )
 
-        chart_df = pd.DataFrame(
-            {
-                "Outcome": [outcome_display(k) for k in class_labels],
-                "Probability": [probs[k] for k in class_labels],
-            }
-        ).set_index("Outcome")
-        st.bar_chart(chart_df, height=260)
+        col_left, col_right = st.columns([3, 2])
+        with col_left:
+            _render_probability_bars(class_labels, probs)
+        with col_right:
+            st.markdown("#### Match Summary")
+            st.markdown(
+                f"""
+                <div class='card'>
+                <h4>{home_team} vs {away_team}</h4>
+                <div>Date: {match_date.isoformat()}</div>
+                <div>Season year: {int(year)}</div>
+                <div>Model: {model_name}</div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
 
 
 if __name__ == "__main__":
